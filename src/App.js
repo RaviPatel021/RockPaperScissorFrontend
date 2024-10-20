@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import axios from 'axios';
 import './App.css'; // Optional: for styling
 
@@ -9,52 +9,113 @@ function App() {
   const [victories, setVictories] = useState(0);
   const [losses, setLosses] = useState(0);
   const [ties, setTies] = useState(0);
-
+  const [gameHistory, setGameHistory] = useState([]); // To track each move
+  const [isButtonDisabled, setIsButtonDisabled] = useState(false); // Disable buttons temporarily
   const choices = ['rock', 'paper', 'scissors'];
 
-  const handleClick = (choice) => {
-    setUserChoice(choice);
-
-    // Send user's choice to the backend
-    axios.post('https://rockpaperscissorbackend.onrender.com/play', 
-      { choice },
-      {
-        headers: {
-          "Content-Type": "application/json; charset=utf-8",
-        },
-        withCredentials: true,
-        crossDomain: true,
-      })
-      .then(response => {
-        setComputerChoice(response.data.computer_choice);
-        setResult(response.data.result);
-
-        // Update the win/loss/tie counters
-        if (response.data.result === 'You win!') {
-          setVictories(victories + 1);
-        } else if (response.data.result === 'Computer wins!') {
-          setLosses(losses + 1);
-        } else {
-          setTies(ties + 1);
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        setResult('Error: Something went wrong! Please try again.');
-      });
+  // Debounce function to handle rapid clicks
+  const debounce = (fn, delay) => {
+    let timer;
+    return (...args) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn(...args), delay);
+    };
   };
 
+  const handleClick = useCallback(
+    debounce((choice) => {
+      setUserChoice(choice);
+      setIsButtonDisabled(true); // Disable buttons temporarily
+
+      // Send user's choice to the backend
+      axios
+        .post(
+          'https://rockpaperscissorbackend.onrender.com/play',
+          { choice },
+          {
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+            },
+            withCredentials: true,
+            crossDomain: true,
+          }
+        )
+        .then((response) => {
+          const computer = response.data.computer_choice;
+          const outcome = response.data.result;
+
+          setComputerChoice(computer);
+          setResult(outcome);
+
+          // Update the win/loss/tie counters using previous state
+          setVictories((prevVictories) =>
+            outcome === 'You win!' ? prevVictories + 1 : prevVictories
+          );
+          setLosses((prevLosses) =>
+            outcome === 'Computer wins!' ? prevLosses + 1 : prevLosses
+          );
+          setTies((prevTies) =>
+            outcome === "It's a tie!" ? prevTies + 1 : prevTies
+          );
+
+          // Store the result in the game history
+          setGameHistory((prevHistory) => [
+            ...prevHistory,
+            { userChoice: choice, computerChoice: computer, result: outcome },
+          ]);
+        })
+        .catch((error) => {
+          console.error('Error:', error);
+          setResult('Error: Something went wrong! Please try again.');
+        })
+        .finally(() => {
+          // Enable the button after a short delay (debounced)
+          setIsButtonDisabled(false);
+        });
+    }, 500), // 500ms debounce delay
+    []
+  );
+
   // Calculate percentages
-  const winPercentage = (losses + victories + ties) > 0 ? (victories / (losses + victories + ties)) * 100 : 0;
-  const lossPercentage = (losses + victories + ties) > 0 ? (losses / (losses + victories + ties)) * 100 : 0;
-  const tiePercentage = (losses + victories + ties) > 0 ? (ties / (losses + victories + ties)) * 100 : 0;
+  const winPercentage =
+    losses + victories + ties > 0 ? (victories / (losses + victories + ties)) * 100 : 0;
+  const lossPercentage =
+    losses + victories + ties > 0 ? (losses / (losses + victories + ties)) * 100 : 0;
+  const tiePercentage =
+    losses + victories + ties > 0 ? (ties / (losses + victories + ties)) * 100 : 0;
+
+  // Generate CSV file with game history
+  const generateCSV = () => {
+    const header = ['User Choice', 'Computer Choice', 'Result'];
+    const rows = gameHistory.map((game) => [game.userChoice, game.computerChoice, game.result]);
+
+    const csvContent = [header, ...rows]
+      .map((row) => row.join(','))
+      .join('\n');
+
+    // Get the current timestamp in YYYY-MM-DD_HH-MM-SS format
+    const timestamp = new Date().toISOString().replace(/[:]/g, '-').split('.')[0];
+
+    // Create a downloadable CSV file with timestamp in the filename
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      link.href = URL.createObjectURL(blob);
+      link.download = `game_history_${timestamp}.csv`; // Use the timestamp in the file name
+      link.click();
+    }
+  };
 
   return (
     <div className="App">
       <h1>Rock Paper Scissors</h1>
       <div className="choices">
         {choices.map((choice) => (
-          <button key={choice} onClick={() => handleClick(choice)}>
+          <button
+            key={choice}
+            onClick={() => handleClick(choice)}
+            disabled={isButtonDisabled} // Disable button during processing
+          >
             {choice}
           </button>
         ))}
@@ -84,8 +145,15 @@ function App() {
             {tiePercentage.toFixed(1)}%
           </div>
         </div>
-        <p>Total Games: {(losses + victories + ties)}</p>
+        <p>Total Games: {losses + victories + ties}</p>
       </div>
+
+      {/* Download CSV Button */}
+      {losses + victories + ties > 0 && (
+        <button onClick={generateCSV} className="download-btn">
+          Download Game History
+        </button>
+      )}
     </div>
   );
 }
