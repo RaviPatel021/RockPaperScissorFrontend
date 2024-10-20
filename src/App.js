@@ -9,7 +9,6 @@ function App() {
   const [victories, setVictories] = useState(0);
   const [losses, setLosses] = useState(0);
   const [ties, setTies] = useState(0);
-  const [totalGames, setTotalGames] = useState(0);
 
   const choices = ['rock', 'paper', 'scissors'];
 
@@ -38,9 +37,6 @@ function App() {
         } else {
           setTies(ties + 1);
         }
-
-        // Update the total games count
-        setTotalGames(totalGames + 1);
       })
       .catch(error => {
         console.error('Error:', error);
@@ -49,9 +45,9 @@ function App() {
   };
 
   // Calculate percentages
-  const winPercentage = totalGames > 0 ? (victories / totalGames) * 100 : 0;
-  const lossPercentage = totalGames > 0 ? (losses / totalGames) * 100 : 0;
-  const tiePercentage = totalGames > 0 ? (ties / totalGames) * 100 : 0;
+  const winPercentage = (losses + victories + ties) > 0 ? (victories / (losses + victories + ties)) * 100 : 0;
+  const lossPercentage = (losses + victories + ties) > 0 ? (losses / (losses + victories + ties)) * 100 : 0;
+  const tiePercentage = (losses + victories + ties) > 0 ? (ties / (losses + victories + ties)) * 100 : 0;
 
   return (
     <div className="App">
@@ -88,7 +84,7 @@ function App() {
             {tiePercentage.toFixed(1)}%
           </div>
         </div>
-        <p>Total Games: {totalGames}</p>
+        <p>Total Games: {(losses + victories + ties)}</p>
       </div>
     </div>
   );
