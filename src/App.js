@@ -11,6 +11,7 @@ function App() {
   const [ties, setTies] = useState(0);
   const [gameHistory, setGameHistory] = useState([]); // To track each move
   const [isButtonDisabled, setIsButtonDisabled] = useState(false); // Disable buttons temporarily
+  const [isRandomChoice, setIsRandomChoice] = useState(false); // Toggle for random choice
   const choices = ['rock', 'paper', 'scissors'];
 
   // Debounce function to handle rapid clicks
@@ -27,54 +28,97 @@ function App() {
       setUserChoice(choice);
       setIsButtonDisabled(true); // Disable buttons temporarily
 
-      // Send user's choice to the backend
-      axios
-        .post(
-          'https://rockpaperscissorbackend.onrender.com/play',
-          { choice },
-          {
-            headers: {
-              'Content-Type': 'application/json; charset=utf-8',
-            },
-            withCredentials: true,
-            crossDomain: true,
-          }
-        )
-        .then((response) => {
-          const computer = response.data.computer_choice;
-          const outcome = response.data.result;
+      if(isRandomChoice){
+        // Generate a random choice for the computer
+        const randomChoice = choices[Math.floor(Math.random() * choices.length)];
+        setComputerChoice(randomChoice);
+        const outcome = getResult(choice, randomChoice);
 
-          setComputerChoice(computer);
-          setResult(outcome);
+        setResult(outcome);
 
-          // Update the win/loss/tie counters using previous state
-          setVictories((prevVictories) =>
-            outcome === 'You win!' ? prevVictories + 1 : prevVictories
-          );
-          setLosses((prevLosses) =>
-            outcome === 'Computer wins!' ? prevLosses + 1 : prevLosses
-          );
-          setTies((prevTies) =>
-            outcome === "It's a tie!" ? prevTies + 1 : prevTies
-          );
+        // Update the win/loss/tie counters using previous state
+        setVictories((prevVictories) =>
+          outcome === 'You win!' ? prevVictories + 1 : prevVictories
+        );
+        setLosses((prevLosses) =>
+          outcome === 'Computer wins!' ? prevLosses + 1 : prevLosses
+        );
+        setTies((prevTies) =>
+          outcome === "It's a tie!" ? prevTies + 1 : prevTies
+        );
 
-          // Store the result in the game history
-          setGameHistory((prevHistory) => [
-            ...prevHistory,
-            { userChoice: choice, computerChoice: computer, result: outcome },
-          ]);
-        })
-        .catch((error) => {
-          console.error('Error:', error);
-          setResult('Error: Something went wrong! Please try again.');
-        })
-        .finally(() => {
-          // Enable the button after a short delay (debounced)
-          setIsButtonDisabled(false);
-        });
+        setIsButtonDisabled(false);
+
+        // Store the result in the game history
+        setGameHistory((prevHistory) => [
+          ...prevHistory,
+          { userChoice: choice, computerChoice: randomChoice, result: outcome, random: true },
+        ]);
+      }
+      else{
+
+        // Send user's choice to the backend
+        axios
+          .post(
+            'https://rockpaperscissorbackend.onrender.com/play',
+            { choice },
+            {
+              headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+              },
+              withCredentials: true,
+              crossDomain: true,
+            }
+          )
+          .then((response) => {
+            const computer = response.data.computer_choice;
+            const outcome = response.data.result;
+
+            setComputerChoice(computer);
+            setResult(outcome);
+
+            // Update the win/loss/tie counters using previous state
+            setVictories((prevVictories) =>
+              outcome === 'You win!' ? prevVictories + 1 : prevVictories
+            );
+            setLosses((prevLosses) =>
+              outcome === 'Computer wins!' ? prevLosses + 1 : prevLosses
+            );
+            setTies((prevTies) =>
+              outcome === "It's a tie!" ? prevTies + 1 : prevTies
+            );
+
+            // Store the result in the game history
+            setGameHistory((prevHistory) => [
+              ...prevHistory,
+              { userChoice: choice, computerChoice: computer, result: outcome, random: false},
+            ]);
+          })
+          .catch((error) => {
+            console.error('Error:', error);
+            setResult('Error: Something went wrong! Please try again.');
+          })
+          .finally(() => {
+            // Enable the button after a short delay (debounced)
+              setIsButtonDisabled(false);
+            });
+      }
     }, 500), // 500ms debounce delay
-    []
+    [isRandomChoice]
   );
+
+  // Function to determine the outcome based on user and computer choices
+  const getResult = (userChoice, computerChoice) => {
+    if (userChoice === computerChoice) return "It's a tie!";
+    if (
+      (userChoice === 'rock' && computerChoice === 'scissors') ||
+      (userChoice === 'scissors' && computerChoice === 'paper') ||
+      (userChoice === 'paper' && computerChoice === 'rock')
+    ) {
+      return 'You win!';
+    }
+    return 'Computer wins!';
+  };
 
   // Calculate percentages
   const winPercentage =
@@ -86,8 +130,8 @@ function App() {
 
   // Generate CSV file with game history
   const generateCSV = () => {
-    const header = ['User Choice', 'Computer Choice', 'Result'];
-    const rows = gameHistory.map((game) => [game.userChoice, game.computerChoice, game.result]);
+    const header = ['User Choice', 'Computer Choice', 'Result', 'Random'];
+    const rows = gameHistory.map((game) => [game.userChoice, game.computerChoice, game.result, game.random]);
 
     const csvContent = [header, ...rows]
       .map((row) => row.join(','))
@@ -109,6 +153,13 @@ function App() {
   return (
     <div className="App">
       <h1>Rock Paper Scissors</h1>
+      {/* Toggle Button on the Top Right */}
+      <button
+        className={`top-right-button ${isRandomChoice ? 'active' : ''}`}
+        onClick={() => setIsRandomChoice(!isRandomChoice)}
+      >
+        {isRandomChoice ? 'Random  is On' : 'Random Mode is Off'}
+      </button>
       <div className="choices">
         {choices.map((choice) => (
           <button
