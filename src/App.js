@@ -150,13 +150,26 @@ function App() {
     }
   };
 
+  const handleToggleRandom = () => {
+    if (window.confirm('Switching modes will reset your score. Do you wish to continue?')) {
+      setIsRandomChoice(!isRandomChoice);
+      setVictories(0);
+      setLosses(0);
+      setTies(0);
+      setGameHistory([]);
+      setUserChoice('');
+      setComputerChoice('');
+      setResult('');
+    }
+  };
+
   return (
     <div className="App">
       <h1>Rock Paper Scissors</h1>
       {/* Toggle Button on the Top Right */}
       <button
-        className={`top-right-button ${isRandomChoice ? 'active' : ''}`}
-        onClick={() => setIsRandomChoice(!isRandomChoice)}
+        className={`top-right-button ${isRandomChoice ? 'active' : 'inactive'}`}
+        onClick={handleToggleRandom}
       >
         {isRandomChoice ? 'Random  is On' : 'Random Mode is Off'}
       </button>

@@ -121,3 +121,9 @@ p {
 .top-right-button.active {
   background-color: #4CAF50;
 }
+
+
+/* Background color when random mode is active */
+.top-right-button.inactive {
+  background-color: #f44336;
+}
