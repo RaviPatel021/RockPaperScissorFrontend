@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useTransition } from 'react';
 import axios from 'axios';
 import './App.css'; // Optional: for styling
 
@@ -12,6 +12,7 @@ function App() {
   const [gameHistory, setGameHistory] = useState([]); // To track each move
   const [isButtonDisabled, setIsButtonDisabled] = useState(false); // Disable buttons temporarily
   const [isRandomChoice, setIsRandomChoice] = useState(false); // Toggle for random choice
+  const [isPending, startTransition] = useTransition();
   const choices = ['rock', 'paper', 'scissors'];
 
   // Debounce function to handle rapid clicks
@@ -152,14 +153,16 @@ function App() {
 
   const handleToggleRandom = () => {
     if (window.confirm('Switching modes will reset your score. Do you wish to continue?')) {
-      setIsRandomChoice(!isRandomChoice);
-      setVictories(0);
-      setLosses(0);
-      setTies(0);
-      setGameHistory([]);
-      setUserChoice('');
-      setComputerChoice('');
-      setResult('');
+      startTransition(() => {
+        setIsRandomChoice((prev) => !prev);
+        setVictories(0);
+        setLosses(0);
+        setTies(0);
+        setGameHistory([]);
+        setUserChoice('');
+        setComputerChoice('');
+        setResult('');
+      });
     }
   };
 
@@ -170,6 +173,7 @@ function App() {
       <button
         className={`top-right-button ${isRandomChoice ? 'active' : 'inactive'}`}
         onClick={handleToggleRandom}
+        disabled={isPending} // Disable button while transition is pending
       >
         {isRandomChoice ? 'Random  is On' : 'Random Mode is Off'}
       </button>
