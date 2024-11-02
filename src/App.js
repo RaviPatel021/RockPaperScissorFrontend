@@ -75,8 +75,7 @@ function App() {
             headers: {
               'Content-Type': 'application/json; charset=utf-8',
             },
-            withCredentials: true,
-            crossDomain: true,
+            withCredentials: true
           }
         )
         .catch((error) => {
@@ -99,8 +98,7 @@ function App() {
             headers: {
               'Content-Type': 'application/json; charset=utf-8',
             },
-            withCredentials: true,
-            crossDomain: true,
+            withCredentials: true
           }
         )
         .then((response) => {
