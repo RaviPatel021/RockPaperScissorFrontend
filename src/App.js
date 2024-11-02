@@ -93,7 +93,7 @@ function App() {
 
         // Send user's choice to the backend
         axios.post(
-          'http://10.145.62.93:5000/play',
+          'https://rockpaperscissorbackend.onrender.com/play',
           { choice , user_id: userId, random: isRandomChoice },
           {
             headers: {
