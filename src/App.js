@@ -1,6 +1,7 @@
-import React, { useState, useCallback, useTransition } from 'react';
+import React, { useState, useCallback, useTransition, useEffect } from 'react';
 import axios from 'axios';
 import './App.css'; // Optional: for styling
+
 
 function App() {
   const [userChoice, setUserChoice] = useState('');
@@ -13,7 +14,20 @@ function App() {
   const [isButtonDisabled, setIsButtonDisabled] = useState(false); // Disable buttons temporarily
   const [isRandomChoice, setIsRandomChoice] = useState(false); // Toggle for random choice
   const [isPending, startTransition] = useTransition();
+  const [userId, setUserId] = useState(''); // State to hold user ID
   const choices = ['rock', 'paper', 'scissors'];
+
+  useEffect(() => {
+    // Generate a unique user ID when the app loads
+    const generateUserId = () => {
+      return 'user_' + Math.random().toString(36).substr(2, 9); // Generate a random user ID
+    };
+
+    const id = generateUserId();
+    setUserId(id);
+
+  }, []); // This runs only once when the app loads
+
 
   // Debounce function to handle rapid clicks
   const debounce = (fn, delay) => {
@@ -48,64 +62,82 @@ function App() {
           outcome === "It's a tie!" ? prevTies + 1 : prevTies
         );
 
-        setIsButtonDisabled(false);
-
         // Store the result in the game history
         setGameHistory((prevHistory) => [
           ...prevHistory,
-          { userChoice: choice, computerChoice: randomChoice, result: outcome, random: true },
+          { userChoice: choice, computerChoice: randomChoice, result: outcome, random: true},
         ]);
+
+        axios.post(
+          'http://10.145.62.93:5000/play',
+          { choice, computer:randomChoice , user_id: userId, random: isRandomChoice },
+          {
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+            },
+            withCredentials: true,
+            crossDomain: true,
+          }
+        )
+        .catch((error) => {
+          console.error('Error:', error);
+          setResult('Error: Something went wrong! Please try again.');
+        })
+        .finally(() => {
+          // Enable the button after a short delay (debounced)
+            setIsButtonDisabled(false);
+        });
+
       }
       else{
 
         // Send user's choice to the backend
-        axios
-          .post(
-            'https://rockpaperscissorbackend.onrender.com/play',
-            { choice },
-            {
-              headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-              },
-              withCredentials: true,
-              crossDomain: true,
-            }
-          )
-          .then((response) => {
-            const computer = response.data.computer_choice;
-            const outcome = response.data.result;
+        axios.post(
+          'http://10.145.62.93:5000/play',
+          { choice , user_id: userId, random: isRandomChoice },
+          {
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+            },
+            withCredentials: true,
+            crossDomain: true,
+          }
+        )
+        .then((response) => {
+          const computer = response.data.computer_choice;
+          const outcome = response.data.result;
 
-            setComputerChoice(computer);
-            setResult(outcome);
+          setComputerChoice(computer);
+          setResult(outcome);
 
-            // Update the win/loss/tie counters using previous state
-            setVictories((prevVictories) =>
-              outcome === 'You win!' ? prevVictories + 1 : prevVictories
-            );
-            setLosses((prevLosses) =>
-              outcome === 'Computer wins!' ? prevLosses + 1 : prevLosses
-            );
-            setTies((prevTies) =>
-              outcome === "It's a tie!" ? prevTies + 1 : prevTies
-            );
+          // Update the win/loss/tie counters using previous state
+          setVictories((prevVictories) =>
+            outcome === 'You win!' ? prevVictories + 1 : prevVictories
+          );
+          setLosses((prevLosses) =>
+            outcome === 'Computer wins!' ? prevLosses + 1 : prevLosses
+          );
+          setTies((prevTies) =>
+            outcome === "It's a tie!" ? prevTies + 1 : prevTies
+          );
 
-            // Store the result in the game history
-            setGameHistory((prevHistory) => [
-              ...prevHistory,
-              { userChoice: choice, computerChoice: computer, result: outcome, random: false},
-            ]);
-          })
-          .catch((error) => {
-            console.error('Error:', error);
-            setResult('Error: Something went wrong! Please try again.');
-          })
-          .finally(() => {
-            // Enable the button after a short delay (debounced)
-              setIsButtonDisabled(false);
-            });
+          // Store the result in the game history
+          setGameHistory((prevHistory) => [
+            ...prevHistory,
+            { userChoice: choice, computerChoice: computer, result: outcome, random: false},
+          ]);
+        })
+        .catch((error) => {
+          console.error('Error:', error);
+          setResult('Error: Something went wrong! Please try again.');
+        })
+        .finally(() => {
+          // Enable the button after a short delay (debounced)
+            setIsButtonDisabled(false);
+        });
       }
-    }, 500), // 500ms debounce delay
-    [isRandomChoice]
+    }, 500), // 500ms debounce delay 
+    [isRandomChoice, userId]
   );
 
   // Function to determine the outcome based on user and computer choices
